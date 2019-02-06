@@ -2,7 +2,7 @@
 
 const fs = require('fs')
 const process = require('process')
-const { exec, execSync } = require('child_process')
+const { spawn, execSync } = require('child_process')
 const uuidv4 = require('uuid/v4')
 const request = require('request')
 
@@ -31,15 +31,17 @@ for (const part of commandParts) {
 
 
 if (!tooMany) {
+
   startDownloads(urls, fifos)
   
-  proc = exec(command, (err, stdout, stderr) => {
-    if (err) {
-      console.error(err)
-    }
+  const proc = spawn(command, { shell: true })
 
-    console.log(stdout)
+  proc.on('error', (err) => {
+    console.error(err)
   })
+
+  proc.stdout.pipe(process.stdout)
+  proc.stderr.pipe(process.stderr)
 }
 
 function startDownloads(urls, fifos) {
@@ -49,7 +51,11 @@ function startDownloads(urls, fifos) {
 
     const fifoWriteStream = fs.createWriteStream(fifo)
 
-    request(url).pipe(fifoWriteStream)
+    request(url)
+      .pipe(fifoWriteStream)
+      .on('error', (err) => {
+        console.error(err)
+      })
   }
 }
 
